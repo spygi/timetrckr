@@ -21,6 +21,15 @@ isItLunchOrNightTime() {
 	fi
 }
 
+lastWorkingDay() {
+    if [[ ! -z `date | grep Mon` ]]
+    then
+       echo `date -v-3d +%F`
+    else 
+		echo `date -v-1d +%F`
+	fi
+}
+
 # enter subshell so we don't pollute with variables
 (  
 # Settings #
@@ -32,6 +41,7 @@ TIMESEPARATOR=";"
 TODAY=`date "+%F"` # +%Y-%m-%d
 TIME=`date "+%T"` # +%H:%M:%S
 NOW=`date +%s` # timestamp
+LASTWORKINGDAY=`lastWorkingDay`
 
 [ ! -f $FILE ] && echo "File $FILE not found!\n Creating it now!" && touch $FILE
 # TODO: check format of file (eg first line is of the correct format)
@@ -45,8 +55,11 @@ fi
 
 if [ -z "$ALREADYLOGGEDINTODAY" ]
 then
-	# It's a new day, you look great today
+	# It's a new day
 	printf "%s %s" "$TODAY" "$TIME" > $FILE
+	
+	# run the summary for the lastWorkingDay
+
 elif [[ (-z $LASTSLEEPTIME && "`isItLunchOrNightTime $NOW`" = true) ]]  
 then
 	echo 1 
