@@ -21,12 +21,27 @@ isItLunchOrNightTime() {
 	fi
 }
 
+# Of course this won't work correctly with public holidays etc.
 lastWorkingDay() {
     if [[ ! -z `date | grep Mon` ]]
     then
        echo `date -v-3d +%F`
     else 
 		echo `date -v-1d +%F`
+	fi
+}
+
+# This won't work if you run the script from tmux
+showSummary() {
+	local LINE=`grep "$LASTWORKINGDAY" $FILE`
+	local DIFF=0
+	if [[ ! -z $LINE ]]
+	then
+		#local NR=`cat $LINE | awk -F "$TIMESEPARATOR" '{print NR}'` # '{diff=0; cmd="date -j -f \"%T\" \"+%s\" "; for(i=0;i<NR;i++) { wake=cmd | $1; sleep=cmd } }'
+		#while IFS=$TIMESEPARATOR read -ra line; do
+		#	$((${line[1]} && echo "${line[1]}" | openssl dgst -sha1
+		#done < inputFile
+		#`osascript -e 'display notification "Lorem ipsum dolor sit amet" with title "Title"'`
 	fi
 }
 
@@ -42,6 +57,9 @@ TODAY=`date "+%F"` # +%Y-%m-%d
 TIME=`date "+%T"` # +%H:%M:%S
 NOW=`date +%s` # timestamp
 LASTWORKINGDAY=`lastWorkingDay`
+
+
+
 
 [ ! -f $FILE ] && echo "File $FILE not found!\n Creating it now!" && touch $FILE
 # TODO: check format of file (eg first line is of the correct format)
@@ -59,7 +77,7 @@ then
 	printf "%s %s" "$TODAY" "$TIME" > $FILE
 	
 	# run the summary for the lastWorkingDay
-
+	if [[ `grep "$LASTWORKINGDAY"`]]
 elif [[ (-z $LASTSLEEPTIME && "`isItLunchOrNightTime $NOW`" = true) ]]  
 then
 	echo 1 
