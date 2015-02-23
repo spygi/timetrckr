@@ -48,18 +48,22 @@ showSummary() {
 		local MINUTES=$(( ($DIFF/60)%60 ))
 		local PRETTYTEXT=$HOURS" hours, "$MINUTES" minutes"
 		osascript -e "display notification \"worked on $LASTWORKINGDAY\" with title \"$PRETTYTEXT\""
+		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $OUTPUTFILE" 
 
 		# Here we need additional precision (2 digits)
 		# Note that bc floors the result
 		printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
+	else 
+		# We just created the $FILE
+		osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
 	fi
 }
 
 # enter subshell so we don't pollute with variables
 (  
 # Settings #
-FILE=time.csv
-OUTPUTFILE=summary.csv
+FILE=~/time.csv
+OUTPUTFILE=~/summary.csv
 THRESHHOLD=$(( 10*60 )) # 10 minutes
 TIMESEPARATOR=";" 
 
@@ -69,7 +73,7 @@ TODAY=`date "+%F"` # +%Y-%m-%d
 TIME=`date "+%T"` # +%H:%M:%S
 NOW=`date +%s` # timestamp
 
-[ ! -f $FILE ] && echo "File $FILE not found!\n Creating it now!" && touch $FILE
+[ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
 # TODO: check format of file (eg first line is of the correct format)
 
 ALREADYLOGGEDINTODAY=`grep $TODAY $FILE`
@@ -82,17 +86,19 @@ LASTWORKINGDAY=`tail -n 1 $FILE | awk -F " " '{print $1}'`
 
 if [ -z "$ALREADYLOGGEDINTODAY" ]
 then
-	# It's a new day
+	logger -t $APPNAME "It's a new day"
 	printf "%s %s" "$TODAY" "$TIME" >> $FILE
 
 	if [[ ! -z $LASTWORKINGDAY ]]
 	then
+		sleep 2 # give some time for the notifications
 		# Create results for previous working day	
 		showSummary
 	fi
 elif [[ (-z $LASTSLEEPTIME && "`isItLunchOrNightTime $NOW`" = true) ]]  
 then
-	# We are sleeping now while lunch time
+	# We are sleeping now while lunch (or night) time
+	logger -t $APPNAME "Writing sleep time to $FILE"
 	sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE # printf "%s%s" "$TIMESEPARATOR" "$TIME" >> $FILE
 elif [[ ! -z $LASTSLEEPTIME ]]
 then 
@@ -100,11 +106,13 @@ then
 	if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHHOLD ]]
 	then
 		# Was not big enough to be considered a (lunch or night) break
+		logger -t $APPNAME "Removing last sleep time from $FILE"
 		sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $FILE
 	else 
-		# write a new wake time
+		logger -t $APPNAME "Writing new wake time to $FILE"
 		sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE
-		
+	
+		sleep 2;	
 		osascript -e "display notification \"Resuming recording...\" with title \"$APPNAME\""
 	fi
 fi
