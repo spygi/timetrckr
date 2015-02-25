@@ -3,21 +3,16 @@
 # This script will help you calculate your lunch break.
 # 
 # Specifically: writes wake up time in the beginning of the day.
-# Sleep time if during lunch time or end-of-day times and break was big enough.
+# Sleep time if during lunch time and break was big enough.
 #
 # Why not check also other times? 
 # Because of meetings or discussions were laptop might sleep but you are still working
 
-isItLunchOrNightTime() {
+isItLunchTime() {
 	local LUNCHSTART="11:30:00"
 	local LUNCHSTOP="13:30:00"
-	local NIGHTSTART="17:00:00"
-	local NIGHTSTOP="23:59:59"
 	if [[ $(( $1 - `date -j -f "%T" "$LUNCHSTART" "+%s"` )) -ge 0 && $(( $1 - `date -j -f "%T" "$LUNCHSTOP" "+%s"` )) -le 0 ]] 
 	then
-		echo true
-	elif [[ $(( $1 - `date -j -f "%T" "$NIGHTSTART" "+%s"` )) -ge 0 && $(( $1 - `date -j -f "%T" "$NIGHTSTOP" "+%s"` )) -le 0 ]] 
-	then 
 		echo true
 	fi
 }
@@ -91,9 +86,9 @@ then
 	else
 		osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
 	fi
-elif [[ (-z $LASTSLEEPTIME && "`isItLunchOrNightTime $NOW`" = true) ]]  
+elif [[ (-z $LASTSLEEPTIME && "`isItLunchTime $NOW`" = true) ]]  
 then
-	# We are sleeping now while lunch (or night) time
+	# We are sleeping now while lunch time
 	logger -t $APPNAME "Writing sleep time to $FILE"
 	sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE # printf "%s%s" "$TIMESEPARATOR" "$TIME" >> $FILE
 elif [[ ! -z $LASTSLEEPTIME ]]
@@ -101,7 +96,7 @@ then
 	# We are waking up again
 	if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHHOLD ]]
 	then
-		# Was not big enough to be considered a (lunch or night) break
+		# Was not big enough to be considered a lunch break
 		logger -t $APPNAME "Removing last sleep time from $FILE"
 		sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $FILE
 	else 
