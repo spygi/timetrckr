@@ -61,6 +61,7 @@ APPNAME="timetrckr"
 TODAY=`date "+%F"` # +%Y-%m-%d
 TIME=`date "+%T"` # +%H:%M:%S
 NOW=`date +%s` # timestamp
+SHUTDOWNPATTERN="SHUTDOWN_TIME:"
 
 [ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
 # TODO: check format of file (eg first line is of the correct format)
@@ -75,7 +76,12 @@ LASTWORKINGDAY=`tail -n 1 $FILE | awk -F " " '{print $1}'`
 
 if [ -z "$ALREADYLOGGEDINTODAY" ]
 then
-	logger -t $APPNAME "It's a new day"
+	logger -t $APPNAME "Writing last shutdown time to $FILE"
+	LASTSHUTDOWNTIMESTAMP=`grep -m 1 $SHUTDOWNPATTERN /private/var/log/system.log | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
+	LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
+	sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
+	
+	logger -t $APPNAME "Starting a new day"
 	printf "%s %s" "$TODAY" "$TIME" >> $FILE
 
 	if [[ ! -z $LASTWORKINGDAY ]]
