@@ -25,38 +25,32 @@ isItLunchOrNightTime() {
 # OSX notifications won't work if you run the script from tmux
 showSummary() {
 	local LINE=`grep "$LASTWORKINGDAY" $FILE`
-	if [[ ! -z LINE ]] 
+	# convert the line to timestamps and calculate the diff
+	# Notes:
+	# the space is required for [ $TIMESEPARATOR] since the date has a space
+	# $0 is the full line in awk and $1 is the date, that's why we start the loop with $2
+	# NR starts from 1 in awk	
+	local DIFF=`echo $LINE | awk -F "[ $TIMESEPARATOR]" '{for (i=2; i<=NF;i++) {print $i}}' | xargs -n1 date -j -f "%T" "+%s" | awk 'BEGIN{diff=0;}{if(NR%2==0){diff+=$0} else {diff-=$0}} END{print diff}'`
+
+	if [[ $DIFF -le 0 ]]
+	then 
+		osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $FILE\" with title \"$APPNAME\""
+		exit 1;
+	elif [[ -f $OUTPUTFILE && ! -z `grep $LASTWORKINGDAY $OUTPUTFILE` ]]  
 	then
-		# convert the line to timestamps and calculate the diff
-		# Notes:
-		# the space is required for [ $TIMESEPARATOR] since the date has a space
-		# $0 is the full line in awk and $1 is the date, that's why we start the loop with $2
-		# NR starts from 1 in awk	
-		local DIFF=`echo $LINE | awk -F "[ $TIMESEPARATOR]" '{for (i=2; i<=NF;i++) {print $i}}' | xargs -n1 date -j -f "%T" "+%s" | awk 'BEGIN{diff=0;}{if(NR%2==0){diff+=$0} else {diff-=$0}} END{print diff}'`
-
-		if [[ $DIFF -le 0 ]]
-		then 
-			osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $FILE\" with title \"$APPNAME\""
-			exit 1;
-		elif [[ -f $OUTPUTFILE && ! -z `grep $LASTWORKINGDAY $OUTPUTFILE` ]]  
-		then
-			osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $OUTPUTFILE\" with title \"$APPNAME\""
-			exit 1;
-		fi
-
-		local HOURS=$(( $DIFF/60/60 )) # Bash does not support float arithmetics
-		local MINUTES=$(( ($DIFF/60)%60 ))
-		local PRETTYTEXT=$HOURS" hours, "$MINUTES" minutes"
-		osascript -e "display notification \"worked on $LASTWORKINGDAY\" with title \"$PRETTYTEXT\""
-		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $OUTPUTFILE" 
-
-		# Here we need additional precision (2 digits)
-		# Note that bc floors the result
-		printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
-	else 
-		# We just created the $FILE
-		osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
+		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $OUTPUTFILE\" with title \"$APPNAME\""
+		exit 1;
 	fi
+
+	local HOURS=$(( $DIFF/60/60 )) # Bash does not support float arithmetics
+	local MINUTES=$(( ($DIFF/60)%60 ))
+	local PRETTYTEXT=$HOURS" hours, "$MINUTES" minutes"
+	osascript -e "display notification \"worked on $LASTWORKINGDAY\" with title \"$PRETTYTEXT\""
+	logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $OUTPUTFILE" 
+
+	# Here we need additional precision (2 digits)
+	# Note that bc floors the result
+	printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
 }
 
 # enter subshell so we don't pollute with variables
@@ -94,6 +88,8 @@ then
 		sleep 2 # give some time for the notifications
 		# Create results for previous working day	
 		showSummary
+	else
+		osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
 	fi
 elif [[ (-z $LASTSLEEPTIME && "`isItLunchOrNightTime $NOW`" = true) ]]  
 then
