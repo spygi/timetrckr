@@ -80,6 +80,7 @@ then
 	LASTSHUTDOWNTIMESTAMP=`grep -m 1 $SHUTDOWNPATTERN /private/var/log/system.log | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
 	LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
 	sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
+	# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
 	
 	logger -t $APPNAME "Starting a new day"
 	printf "%s %s" "$TODAY" "$TIME" >> $FILE
