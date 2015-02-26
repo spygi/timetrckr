@@ -77,7 +77,7 @@ LASTWORKINGDAY=`tail -n 1 $FILE | awk -F " " '{print $1}'`
 if [ -z "$ALREADYLOGGEDINTODAY" ]
 then
 	logger -t $APPNAME "Writing last shutdown time to $FILE"
-	LASTSHUTDOWNTIMESTAMP=`grep -m 1 $SHUTDOWNPATTERN /private/var/log/system.log | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
+	LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
 	LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
 	sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
 	# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
