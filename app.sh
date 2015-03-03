@@ -19,6 +19,9 @@ isItLunchTime() {
 
 # OSX notifications won't work if you run the script from tmux
 showSummary() {
+	echo $app
+	exit 1;
+
 	local LINE=`grep "$LASTWORKINGDAY" $FILE`
 	# convert the line to timestamps and calculate the diff
 	# Notes:
@@ -50,6 +53,36 @@ showSummary() {
 
 # enter subshell so we don't pollute with variables
 (  
+DEFAULTCONFFILE="conf.txt" # format key=value
+while getopts ":f:" opt; do
+  case $opt in
+    f)
+      echo "reading file $OPTARG" >&2
+      ;;
+    \?)
+      echo "Invalid option: -$OPTARG" >&2
+      exit 1
+      ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
+  esac
+done
+# parse configuration file
+while read propline 
+do 
+   # ignore comment lines
+   echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
+   # if not empty, set the property using declare
+   [ ! -z "$propline" ] && declare "$propline"
+done < $CONFFILE
+
+showSummary
+exit 1
+
+
+
 # Settings #
 FILE=~/time.csv
 OUTPUTFILE=~/summary.csv
