@@ -66,6 +66,31 @@ do
    [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
 done < $DEFAULTCONFFILE
 
+SLEEPSTATE="sleep"
+# Parse command line parameters #
+# TODO if they exist!
+while getopts ":s" opt
+do
+	case $opt in
+	s)
+		logger -t "timetrckr" "s selected"
+		STATE=$SLEEPSTATE
+		;;
+#	w)
+#		echo "-w selected"
+#		STATE="wake"
+#		;;
+	\?)
+		logger -t "timetrckr" "Invalid arg"
+		exit 1;
+		;;
+	esac
+done
+logger -t "timetrckr" $STATE
+exit 0;
+
+
+
 # Variables #
 APPNAME="timetrckr"
 TODAY=`date "+%F"` # +%Y-%m-%d

@@ -6,8 +6,12 @@
 	<string>timetrckr</string>
 	<key>WorkingDirectory</key>
 	<string>/Users/giannaks/code/githubRepo/timetrckr</string>
-	<key>Program</key>
-	<string>app.sh</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>bash</string>
+		<string>app.sh</string>
+		<string>-s</string>
+	</array>
 	<key>RunAtLoad</key>
 	<true/>
 </dict>
