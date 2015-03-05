@@ -8,4 +8,4 @@
 # FILE=/Users/giannaks/Dropbox/time2.csv # where to store the output
 # THRESHOLD=0 # this threshold is used to avoid false positives, ie you do a small break but it's not lunch
 # LUNCHSTART=11:30:00
-# LUNCHSTOP=19:30:00
+# LUNCHSTOP=13:30:00

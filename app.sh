@@ -15,7 +15,7 @@ isItLunchTime() {
 	fi
 }
 
-# OSX notifications won't work if you run the script from tmux
+# Warning: OSX notifications won't work if you run the script from tmux
 showSummary() {
 	local LINE=`grep "$LASTWORKINGDAY" $FILE`
 	# convert the line to timestamps and calculate the diff
@@ -46,7 +46,6 @@ showSummary() {
 	printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
 }
 
-
 # enter subshell so we don't pollute with variables
 ( 
 # Default settings #
@@ -58,13 +57,12 @@ TIMESEPARATOR=";"
 LUNCHSTART="11:30:00"
 LUNCHSTOP="13:30:00"
 
-# Parse configuration file, required format: key=value
-# This will overwrite the default settings
+# Parse configuration file, this will overwrite the defaults above #
 while read propline 
 do 
    # ignore comment lines
    echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
-   # strip inline comments and set the variable 
+   # strip inline comments and set the variables 
    [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
 done < $DEFAULTCONFFILE
 
@@ -127,3 +125,4 @@ then
 	fi
 fi
 )
+
