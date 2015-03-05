@@ -9,8 +9,6 @@
 # Because of meetings or discussions were laptop might sleep but you are still working
 
 isItLunchTime() {
-	local LUNCHSTART="11:30:00"
-	local LUNCHSTOP="13:30:00"
 	if [[ $(( $1 - `date -j -f "%T" "$LUNCHSTART" "+%s"` )) -ge 0 && $(( $1 - `date -j -f "%T" "$LUNCHSTOP" "+%s"` )) -le 0 ]] 
 	then
 		echo true
@@ -19,9 +17,6 @@ isItLunchTime() {
 
 # OSX notifications won't work if you run the script from tmux
 showSummary() {
-	echo $app
-	exit 1;
-
 	local LINE=`grep "$LASTWORKINGDAY" $FILE`
 	# convert the line to timestamps and calculate the diff
 	# Notes:
@@ -51,43 +46,27 @@ showSummary() {
 	printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
 }
 
+
 # enter subshell so we don't pollute with variables
-(  
-DEFAULTCONFFILE="conf.txt" # format key=value
-while getopts ":f:" opt; do
-  case $opt in
-    f)
-      echo "reading file $OPTARG" >&2
-      ;;
-    \?)
-      echo "Invalid option: -$OPTARG" >&2
-      exit 1
-      ;;
-    :)
-      echo "Option -$OPTARG requires an argument." >&2
-      exit 1
-      ;;
-  esac
-done
-# parse configuration file
+( 
+# Default settings #
+DEFAULTCONFFILE="conf.txt" 
+FILE=~/time.csv
+OUTPUTFILE=~/summary.csv
+THRESHOLD=$(( 10*60 )) # 10 minutes
+TIMESEPARATOR=";" 
+LUNCHSTART="11:30:00"
+LUNCHSTOP="13:30:00"
+
+# Parse configuration file, required format: key=value
+# This will overwrite the default settings
 while read propline 
 do 
    # ignore comment lines
    echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
-   # if not empty, set the property using declare
-   [ ! -z "$propline" ] && declare "$propline"
-done < $CONFFILE
-
-showSummary
-exit 1
-
-
-
-# Settings #
-FILE=~/time.csv
-OUTPUTFILE=~/summary.csv
-THRESHHOLD=$(( 10*60 )) # 10 minutes
-TIMESEPARATOR=";" 
+   # strip inline comments and set the variable 
+   [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
+done < $DEFAULTCONFFILE
 
 # Variables #
 APPNAME="timetrckr"
@@ -134,7 +113,7 @@ then
 elif [[ ! -z $LASTSLEEPTIME ]]
 then 
 	# We are waking up again
-	if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHHOLD ]]
+	if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHOLD ]]
 	then
 		# Was not big enough to be considered a lunch break
 		logger -t $APPNAME "Removing last sleep time from $FILE"

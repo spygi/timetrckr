@@ -1,0 +1,11 @@
+# Configuration file for timetrckr - do not change the name of the file! 
+# If you want to use the defaults, just comment out everything.
+#
+# Required format is: key=value
+# where key can be FILE, THRESHOLD, LUNCHSTART, LUNCHSTOP, TIMESEPARATOR
+#
+# E.g:
+# FILE=/Users/giannaks/Dropbox/time2.csv # where to store the output
+# THRESHOLD=0 # this threshold is used to avoid false positives, ie you do a small break but it's not lunch
+# LUNCHSTART=11:30:00
+# LUNCHSTOP=19:30:00
