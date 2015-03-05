@@ -4,12 +4,14 @@
 <dict>
 	<key>Label</key>
 	<string>de.bernhard-baehr.sleepwatcher</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/giannaks/code/githubRepo/timetrckr</string>
 	<key>ProgramArguments</key>
 	<array>
 		<string>/usr/local/sbin/sleepwatcher</string>
 		<string>-V</string>
-		<string>-s ~/code/githubRepo/timetrckr/app.sh</string>
-		<string>-w ~/code/githubRepo/timetrckr/app.sh</string>
+		<string>-s `pwd`/app.sh</string>
+		<string>-w `pwd`/app.sh</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>

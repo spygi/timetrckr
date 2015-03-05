@@ -4,8 +4,10 @@
 <dict>
 	<key>Label</key>
 	<string>timetrckr</string>
+	<key>WorkingDirectory</key>
+	<string>/Users/giannaks/code/githubRepo/timetrckr</string>
 	<key>Program</key>
-	<string>/Users/giannaks/code/githubRepo/timetrckr/app.sh</string>
+	<string>app.sh</string>
 	<key>RunAtLoad</key>
 	<true/>
 </dict>
