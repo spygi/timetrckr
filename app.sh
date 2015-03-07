@@ -48,6 +48,15 @@ showSummary() {
 
 # enter subshell so we don't pollute with variables
 ( 
+# Variables #
+APPNAME="timetrckr"
+TODAY=`date "+%F"` # +%Y-%m-%d
+TIME=`date "+%T"` # +%H:%M:%S
+NOW=`date +%s` # timestamp
+SHUTDOWNPATTERN="SHUTDOWN_TIME:"
+SLEEPSTATE="sleep"
+WAKESTATE="wake"
+
 # Default settings #
 DEFAULTCONFFILE="conf.txt" 
 FILE=~/time.csv
@@ -66,38 +75,35 @@ do
    [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
 done < $DEFAULTCONFFILE
 
-SLEEPSTATE="sleep"
 # Parse command line parameters #
-# TODO if they exist!
-while getopts ":s" opt
+# if they exist
+if [ "$#" -ne 1 ]
+then
+  logger -t $APPNAME "Usage: -s|-w"
+  exit 1
+fi
+
+while getopts ":sw" opt
 do
 	case $opt in
 	s)
-		logger -t "timetrckr" "s selected"
+		logger -t $APPNAME "s selected"
 		STATE=$SLEEPSTATE
 		;;
-#	w)
-#		echo "-w selected"
-#		STATE="wake"
-#		;;
+	w)
+		logger -t $APPNAME "w selected"
+		STATE="wake"
+		;;
 	\?)
-		logger -t "timetrckr" "Invalid arg"
-		exit 1;
+		logger -t $APPNAME "Invalid arg"
+		exit 1
 		;;
 	esac
 done
-logger -t "timetrckr" $STATE
-exit 0;
+logger -t $APPNAME $STATE
+exit 0
 
-
-
-# Variables #
-APPNAME="timetrckr"
-TODAY=`date "+%F"` # +%Y-%m-%d
-TIME=`date "+%T"` # +%H:%M:%S
-NOW=`date +%s` # timestamp
-SHUTDOWNPATTERN="SHUTDOWN_TIME:"
-
+# Main part #
 [ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
 # TODO: check format of file (eg first line is of the correct format)
 
