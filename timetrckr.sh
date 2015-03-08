@@ -8,6 +8,11 @@
 # Why not check also other times? 
 # Because of meetings or discussions were laptop might sleep but you are still working
 
+usage() {
+	logger -t $APPNAME "Usage: -s|-w, optional -f <conf.file>"
+	exit 1
+}
+
 isItLunchTime() {
 	if [[ $(( $1 - `date -j -f "%T" "$LUNCHSTART" "+%s"` )) -ge 0 && $(( $1 - `date -j -f "%T" "$LUNCHSTOP" "+%s"` )) -le 0 ]] 
 	then
@@ -58,7 +63,7 @@ SLEEPSTATE="sleep"
 WAKESTATE="wake"
 
 # Default settings #
-DEFAULTCONFFILE="conf.txt" 
+DEFAULTCONFFILE=$APPNAME".conf" 
 FILE=~/time.csv
 OUTPUTFILE=~/summary.csv
 THRESHOLD=$(( 10*60 )) # 10 minutes
@@ -77,13 +82,14 @@ done < $DEFAULTCONFFILE
 
 # Parse command line parameters #
 # if they exist
-if [ "$#" -ne 1 ]
+if [ "$#" -eq 0 ]
 then
-  logger -t $APPNAME "Usage: -s|-w"
-  exit 1
+	usage
 fi
 
-while getopts ":sw" opt
+# f requires an argument
+# note: caller can use both s and w, the latter will be used
+while getopts "swf:" opt
 do
 	case $opt in
 	s)
@@ -92,16 +98,24 @@ do
 		;;
 	w)
 		logger -t $APPNAME "w selected"
-		STATE="wake"
+		STATE=$WAKESTATE
+		;;
+	f)
+		logger -t $APPNAME "f selected"
+		CONFFILE=$OPTARG
 		;;
 	\?)
 		logger -t $APPNAME "Invalid arg"
-		exit 1
+		usage
 		;;
 	esac
 done
-logger -t $APPNAME $STATE
-exit 0
+
+# check if mandatory arguments were given
+if [[ -z $STATE ]]
+then
+	usage 
+fi
 
 # Main part #
 [ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
