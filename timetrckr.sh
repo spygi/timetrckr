@@ -175,9 +175,10 @@ then
 				osascript -e "display notification \"Resuming recording...\" with title \"$APPNAME\""
 			fi
 		else 
-			# validation
-			osascript -e "display notification \"State is $STATE but the entries in $FILE suggest it is a sleep event. Please check your $FILE\" with title \"$APPNAME\""
-			exit 1;
+			# This is *not* a validation error
+			# It can happen eg if a sleep outside of lunch time happens (for a meeting) 
+			# and then we wake up during lunch: the sleep time is skipped as it should.
+			logger -t $APPNAME "Seems like the previous sleep was not reported (on purpose), doing nothing" 
 		fi
 	fi
 else 
