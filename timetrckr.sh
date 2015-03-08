@@ -63,22 +63,13 @@ SLEEPSTATE="sleep"
 WAKESTATE="wake"
 
 # Default settings #
-DEFAULTCONFFILE=$APPNAME".conf" 
+CONFFILE=$APPNAME".conf" 
 FILE=~/time.csv
 OUTPUTFILE=~/summary.csv
 THRESHOLD=$(( 10*60 )) # 10 minutes
 TIMESEPARATOR=";" 
 LUNCHSTART="11:30:00"
 LUNCHSTOP="13:30:00"
-
-# Parse configuration file, this will overwrite the defaults above #
-while read propline 
-do 
-   # ignore comment lines
-   echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
-   # strip inline comments and set the variables 
-   [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
-done < $DEFAULTCONFFILE
 
 # Parse command line parameters #
 # if they exist
@@ -87,7 +78,7 @@ then
 	usage
 fi
 
-# f requires an argument
+# f requires an argument, the file for configuration
 # note: caller can use both s and w, the latter will be used
 while getopts "swf:" opt
 do
@@ -102,7 +93,7 @@ do
 		;;
 	f)
 		logger -t $APPNAME "f selected"
-		CONFFILE=$OPTARG
+		[ -f $OPTARG ] && CONFFILE=$OPTARG
 		;;
 	\?)
 		logger -t $APPNAME "Invalid arg"
@@ -116,6 +107,15 @@ if [[ -z $STATE ]]
 then
 	usage 
 fi
+
+# Parse configuration file, this will overwrite the defaults above #
+while read propline 
+do 
+   # ignore comment lines
+   echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
+   # strip inline comments and set the variables 
+   [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
+done < $CONFFILE
 
 # Main part #
 [ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
@@ -133,10 +133,16 @@ if [ -z "$ALREADYLOGGEDINTODAY" ]
 then
 	logger -t $APPNAME "Writing last shutdown time to $FILE"
 	LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
-	LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
-	sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
 	# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
-	
+	if [ -z $LASTSHUTDOWNTIMESTAMP ]
+	then 
+		osascript -e "display notification \"No shutdown time was found, please insert it manually in $FILE\" with title \"$APPNAME\""
+		sleep 2 # before showing possibly another notification
+	else 
+		LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
+		sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
+	fi
+
 	logger -t $APPNAME "Starting a new day"
 	printf "%s %s" "$TODAY" "$TIME" >> $FILE
 
