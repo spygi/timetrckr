@@ -51,6 +51,88 @@ showSummary() {
 	printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
 }
 
+main() {
+	[ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
+
+	ALREADYLOGGEDINTODAY=`grep $TODAY $FILE`
+	LASTSLEEPTIME=`tail -n 1 $FILE | awk -F "$TIMESEPARATOR" '{if (NF%2 == 0) {print $NF}}'` # NF is even
+	if [[ "$STATE" = "$WAKESTATE" ]]
+	then 
+		if [[ -z "$ALREADYLOGGEDINTODAY" ]] 
+		then 
+			# we start work now
+			LASTWORKINGDAY=`tail -n 1 $FILE | awk -F " " '{print $1}'`
+
+			if [[ ! -z $LASTWORKINGDAY ]]
+			then
+				LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
+				# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
+				if [ -z $LASTSHUTDOWNTIMESTAMP ]
+				then 
+					osascript -e "display notification \"No shutdown time was found, please insert it manually in $FILE\" with title \"$APPNAME\""
+				else 
+					LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
+					if [[ -z `tail -n 1 $FILE | grep $LASTSHUTDOWNTIME` ]] 
+					then
+						# insert it only if it's not entered already
+						logger -t $APPNAME "Writing last shutdown time to $FILE"
+						sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
+					fi
+				fi
+
+				sleep 2 # give some time for the notifications
+				# Create results for previous working day	
+				# showSummary
+			else
+				# the script starts with a fresh FILE
+				osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
+			fi
+
+			logger -t $APPNAME "Starting a new day"
+			printf "%s %s" "$TODAY" "$TIME" >> $FILE
+
+			exit 0;
+		else 
+			if [ ! -z "$LASTSLEEPTIME" ]
+			then
+				LASTSLEEPTIMESTAMP=`date -j -f "%T" "${LASTSLEEPTIME}" "+%s"`
+				
+				if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHOLD ]]
+				then
+					# Was not big enough to be considered a lunch break
+					logger -t $APPNAME "Removing last sleep time from $FILE"
+					sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $FILE
+				else 
+					logger -t $APPNAME "Writing new wake time to $FILE"
+					sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE
+				
+					sleep 2;	
+					osascript -e "display notification \"Resuming recording...\" with title \"$APPNAME\""
+				fi
+			else 
+				# This is *not* a validation error
+				# It can happen eg if a sleep outside of lunch time happens (for a meeting) 
+				# and then we wake up during lunch: the sleep time is skipped as it should.
+				logger -t $APPNAME "Seems like the previous sleep was not reported (was it outside lunch times?), doing nothing" 
+			fi
+		fi
+	else 
+		# we are sleeping
+		if [[ -z $ALREADYLOGGEDINTODAY || ! -z "$LASTSLEEPTIME" ]] 
+		then
+			# validation
+			osascript -e "display notification \"State is $STATE but the entries in $FILE suggest it should be a wake event. Please check your $FILE\" with title \"$APPNAME\""
+			exit 1;
+		elif [[ "`isItLunchTime $NOW`" = true ]]
+		then
+			logger -t $APPNAME "Writing sleep time to $FILE"
+			sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE # printf "%s%s" "$TIMESEPARATOR" "$TIME" >> $FILE
+		else
+			logger -t $APPNAME "Skipping sleep time, not into lunch limits"
+		fi
+	fi
+}
+
 # enter subshell so we don't pollute with variables
 ( 
 # Variables #
@@ -117,84 +199,6 @@ do
    [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline` 
 done < $CONFFILE
 
-# Main part #
-[ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
-
-ALREADYLOGGEDINTODAY=`grep $TODAY $FILE`
-LASTSLEEPTIME=`tail -n 1 $FILE | awk -F "$TIMESEPARATOR" '{if (NF%2 == 0) {print $NF}}'` # NF is even
-if [[ "$STATE" = "$WAKESTATE" ]]
-then 
-	if [[ -z "$ALREADYLOGGEDINTODAY" ]] 
-	then 
-		LASTWORKINGDAY=`tail -n 1 $FILE | awk -F " " '{print $1}'`
-
-		if [[ ! -z $LASTWORKINGDAY ]]
-		then
-			LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
-			# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
-			if [ -z $LASTSHUTDOWNTIMESTAMP ]
-			then 
-				osascript -e "display notification \"No shutdown time was found, please insert it manually in $FILE\" with title \"$APPNAME\""
-			else 
-				LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"` 
-				if [[ -z `tail -n 1 $FILE | grep $LASTSHUTDOWNTIME` ]] 
-				then
-					# insert it only if it's not entered already
-					logger -t $APPNAME "Writing last shutdown time to $FILE"
-					sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
-				fi
-			fi
-
-			sleep 2 # give some time for the notifications
-			# Create results for previous working day	
-			# showSummary
-		else
-			# the script starts with a fresh FILE
-			osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
-		fi
-
-		logger -t $APPNAME "Starting a new day"
-		printf "%s %s" "$TODAY" "$TIME" >> $FILE
-
-		exit 0;
-	else 
-		if [ ! -z "$LASTSLEEPTIME" ]
-		then
-			LASTSLEEPTIMESTAMP=`date -j -f "%T" "${LASTSLEEPTIME}" "+%s"`
-			
-			if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHOLD ]]
-			then
-				# Was not big enough to be considered a lunch break
-				logger -t $APPNAME "Removing last sleep time from $FILE"
-				sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $FILE
-			else 
-				logger -t $APPNAME "Writing new wake time to $FILE"
-				sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE
-			
-				sleep 2;	
-				osascript -e "display notification \"Resuming recording...\" with title \"$APPNAME\""
-			fi
-		else 
-			# This is *not* a validation error
-			# It can happen eg if a sleep outside of lunch time happens (for a meeting) 
-			# and then we wake up during lunch: the sleep time is skipped as it should.
-			logger -t $APPNAME "Seems like the previous sleep was not reported (on purpose), doing nothing" 
-		fi
-	fi
-else 
-	# we are sleeping
-	if [[ -z $ALREADYLOGGEDINTODAY || ! -z "$LASTSLEEPTIME" ]] 
-	then
-		# validation
-		osascript -e "display notification \"State is $STATE but the entries in $FILE suggest it should be a wake event. Please check your $FILE\" with title \"$APPNAME\""
-		exit 1;
-	elif [[ "`isItLunchTime $NOW`" = true ]]
-	then
-		logger -t $APPNAME "Writing sleep time to $FILE"
-		sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE # printf "%s%s" "$TIMESEPARATOR" "$TIME" >> $FILE
-	else
-		logger -t $APPNAME "Skipping sleep time, not into lunch limits"
-	fi
-fi
+main
 )
 
