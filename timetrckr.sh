@@ -9,7 +9,7 @@
 # Because of meetings or discussions were laptop might sleep but you are still working
 
 usage() {
-	logger -t $APPNAME "Usage: -s|-w, optional -f <conf.file>"
+	logger -t $APPNAME "Usage: -s|-w, optional -f <conf.file> or -r [all] for reporting"
 	exit 1
 }
 
@@ -20,9 +20,22 @@ isItLunchTime() {
 	fi
 }
 
+getLastWorkingDay() {
+	echo `tail -n 1 $FILE | awk '{print $1}'`
+}
+
+getWorkingDay() {
+	echo `echo "$1" | awk '{print $1}'`
+}
+
 # Warning: OSX notifications won't work if you run the script from tmux
 showSummary() {
+	local LASTWORKINGDAY=$1
+	local NOTIFICATIONS=$2
+	local WRITETOFILE=$3
+
 	local LINE=`grep "$LASTWORKINGDAY" $FILE`
+
 	# convert the line to timestamps and calculate the diff
 	# Notes:
 	# the space is required for [ $TIMESEPARATOR] since the date has a space
@@ -40,15 +53,24 @@ showSummary() {
 		exit 1;
 	fi
 
-	local HOURS=$(( $DIFF/60/60 )) # Bash does not support float arithmetics
-	local MINUTES=$(( ($DIFF/60)%60 ))
-	local PRETTYTEXT=$HOURS" hours, "$MINUTES" minutes"
-	osascript -e "display notification \"worked on $LASTWORKINGDAY\" with title \"$PRETTYTEXT\""
-	logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $OUTPUTFILE" 
+	if [[ $NOTIFICATIONS = "true" ]]
+	then 
+		local HOURS=$(( $DIFF/60/60 )) # Bash does not support float arithmetics
+		local MINUTES=$(( ($DIFF/60)%60 ))
+		local PRETTYTEXT=$HOURS" hours, "$MINUTES" minutes"
+		osascript -e "display notification \"worked on $LASTWORKINGDAY\" with title \"$PRETTYTEXT\""
+	fi
 
 	# Here we need additional precision (2 digits)
 	# Note that bc floors the result
-	printf "%s %s" $LASTWORKINGDAY `echo "scale=2; $DIFF/60/60" | bc` >> $OUTPUTFILE 
+	local OUTPUT=`echo "scale=2; $DIFF/60/60" | bc` 
+	if [[ $WRITETOFILE = "true" ]]
+	then 
+		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $OUTPUTFILE" 
+		printf "%s %s\n" $LASTWORKINGDAY $OUTPUT >> $OUTPUTFILE 
+	else
+		echo $LASTWORKINGDAY $OUTPUT
+	fi
 }
 
 main() {
@@ -61,8 +83,8 @@ main() {
 		if [[ -z "$ALREADYLOGGEDINTODAY" ]] 
 		then 
 			# we start work now
-			LASTWORKINGDAY=`tail -n 1 $FILE | awk -F " " '{print $1}'`
-
+			local LASTWORKINGDAY=`getLastWorkingDay` 
+			
 			if [[ ! -z $LASTWORKINGDAY ]]
 			then
 				LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
@@ -82,7 +104,7 @@ main() {
 
 				sleep 2 # give some time for the notifications
 				# Create results for previous working day	
-				# showSummary
+				showSummary $LASTWORKINGDAY "true" "false"
 			else
 				# the script starts with a fresh FILE
 				osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
@@ -162,7 +184,7 @@ fi
 
 # f requires an argument, the file for configuration
 # note: caller can use both s and w, the latter will be used
-while getopts "swf:" opt
+while getopts "swf:r:" opt
 do
 	case $opt in
 	s)
@@ -177,12 +199,37 @@ do
 		logger -t $APPNAME "f selected"
 		[ -f $OPTARG ] && CONFFILE=$OPTARG
 		;;
+	r)
+		logger -t $APPNAME "r selected"
+		if [[ $OPTARG = "all" ]]
+		then
+			REPORT="all"
+		else
+			REPORT="one"
+		fi
+		;;
 	\?)
 		logger -t $APPNAME "Invalid arg"
 		usage
 		;;
 	esac
 done
+
+if [[ $REPORT = "all" ]]
+then
+	# TODO handle if summary file exists already
+	while read line
+	do
+		CURRENT=`getWorkingDay $line`
+		showSummary $CURRENT "false" "true" 
+	done < $FILE # this loop works only if the file has at least 2 lines...  
+	# TODO echo the final number 
+	exit 0
+elif [[ $REPORT = "one" ]] 
+then
+	showSummary `getLastWorkingDay` "true" "false" 
+	exit 0
+fi
 
 # check if mandatory arguments were given
 if [[ -z $STATE ]]
