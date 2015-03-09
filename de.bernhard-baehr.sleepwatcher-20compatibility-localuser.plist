@@ -10,8 +10,8 @@
 	<array>
 		<string>/usr/local/sbin/sleepwatcher</string>
 		<string>-V</string>
-		<string>-s `./app.sh -s`</string>
-		<string>-w `./app.sh -w`</string>
+		<string>-s `./timetrckr.sh -s`</string>
+		<string>-w `./timetrckr.sh -w`</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>

@@ -8,7 +8,7 @@
 	<string>/Users/giannaks/code/githubRepo/timetrckr</string>
 	<key>ProgramArguments</key>
 	<array>
-		<string>./app.sh</string>
+		<string>./timetrckr.sh</string>
 		<string>-w</string>
 	</array>
 	<key>RunAtLoad</key>
