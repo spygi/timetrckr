@@ -21,7 +21,7 @@ getWorkingDay() {
 }
 
 # Warning: OSX notifications won't work if you run the script from tmux
-showSummary() {
+parseLine() {
 	local LASTWORKINGDAY=$1
 	local NOTIFICATIONS=$2
 	local WRITETOFILE=$3
@@ -62,6 +62,9 @@ showSummary() {
 		printf "%s %s\n" $LASTWORKINGDAY $OUTPUT >> $OUTPUTFILE
 	else
 		echo $LASTWORKINGDAY $OUTPUT
+		SUMOFHOURS=`echo "$SUMOFHOURS + $OUTPUT" | bc` # we need bc for floating point arithmetics
+		[ -z $STARTOFTIME ] && STARTOFTIME=$LASTWORKINGDAY
+		ENDOFTIME=$LASTWORKINGDAY # gets overwritten every time
 	fi
 }
 
@@ -96,7 +99,7 @@ main() {
 
 				sleep 2 # give some time for the notifications
 				# Create results for previous working day
-				showSummary $LASTWORKINGDAY "true" "false"
+				parseLine $LASTWORKINGDAY "true" "false"
 			else
 				# the script starts with a fresh FILE
 				osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
@@ -166,6 +169,7 @@ THRESHOLD=$(( 10*60 )) # 10 minutes
 TIMESEPARATOR=";"
 LUNCHSTART="11:30:00"
 LUNCHSTOP="13:30:00"
+SUMOFHOURS="0" # is used for reporting to add up hours
 
 # Parse command line parameters #
 # if they exist
@@ -209,17 +213,17 @@ done
 
 if [[ $REPORT = "all" ]]
 then
-	# TODO handle if summary file exists already
 	while read line
 	do
 		CURRENT=`getWorkingDay $line`
-		showSummary $CURRENT "false" "true"
+		parseLine $CURRENT "false" "false"
 	done < $FILE # this loop works only if the file has at least 2 lines...
-	# TODO echo the final number
+
+	osascript -e "display notification \"Worked $SUMOFHOURS hours between $STARTOFTIME and $ENDOFTIME.\" with title \"$APPNAME\""
 	exit 0
 elif [[ $REPORT = "one" ]]
 then
-	showSummary `getLastWorkingDay` "true" "false"
+	parseLine `getLastWorkingDay` "true" "false"
 	exit 0
 fi
 
