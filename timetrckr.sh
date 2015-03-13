@@ -13,7 +13,7 @@ isItLunchTime() {
 }
 
 getLastWorkingDay() {
-	echo `tail -n 1 $FILE | awk '{print $1}'`
+	echo `tail -n 1 $TIMEFILE | awk '{print $1}'`
 }
 
 getWorkingDay() {
@@ -26,7 +26,7 @@ parseLine() {
 	local NOTIFICATIONS=$2
 	local WRITETOFILE=$3
 
-	local LINE=`grep "$LASTWORKINGDAY" $FILE`
+	local LINE=`grep "$LASTWORKINGDAY" $TIMEFILE`
 
 	# convert the line to timestamps and calculate the diff
 	# Notes:
@@ -37,11 +37,11 @@ parseLine() {
 
 	if [[ $DIFF -le 0 ]]
 	then
-		osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $FILE\" with title \"$APPNAME\""
+		osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $TIMEFILE\" with title \"$APPNAME\""
 		exit 1;
-	elif [[ -f $OUTPUTFILE && ! -z `grep $LASTWORKINGDAY $OUTPUTFILE` ]]
+	elif [[ -f $SUMMARYFILE && ! -z `grep $LASTWORKINGDAY $SUMMARYFILE` ]]
 	then
-		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $OUTPUTFILE\" with title \"$APPNAME\""
+		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $SUMMARYFILE\" with title \"$APPNAME\""
 		exit 1;
 	fi
 
@@ -58,8 +58,8 @@ parseLine() {
 	local OUTPUT=`echo "scale=2; $DIFF/60/60" | bc`
 	if [[ $WRITETOFILE = "true" ]]
 	then
-		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $OUTPUTFILE"
-		printf "%s %s\n" $LASTWORKINGDAY $OUTPUT >> $OUTPUTFILE
+		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $SUMMARYFILE"
+		printf "%s %s\n" $LASTWORKINGDAY $OUTPUT >> $SUMMARYFILE
 	else
 		echo $LASTWORKINGDAY $OUTPUT
 		SUMOFHOURS=`echo "$SUMOFHOURS + $OUTPUT" | bc` # we need bc for floating point arithmetics
@@ -69,10 +69,10 @@ parseLine() {
 }
 
 main() {
-	[ ! -f $FILE ] && logger -t $APPNAME "File $FILE not found, creating it now" && touch $FILE
+	[ ! -f $TIMEFILE ] && logger -t $APPNAME "File $TIMEFILE not found, creating it now" && touch $TIMEFILE
 
-	ALREADYLOGGEDINTODAY=`grep $TODAY $FILE`
-	LASTSLEEPTIME=`tail -n 1 $FILE | awk -F "$TIMESEPARATOR" '{if (NF%2 == 0) {print $NF}}'` # NF is even
+	ALREADYLOGGEDINTODAY=`grep $TODAY $TIMEFILE`
+	LASTSLEEPTIME=`tail -n 1 $TIMEFILE | awk -F "$TIMESEPARATOR" '{if (NF%2 == 0) {print $NF}}'` # NF is even
 	if [[ "$STATE" = "$WAKESTATE" ]]
 	then
 		if [[ -z "$ALREADYLOGGEDINTODAY" ]]
@@ -86,14 +86,14 @@ main() {
 				# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
 				if [ -z $LASTSHUTDOWNTIMESTAMP ]
 				then
-					osascript -e "display notification \"No shutdown time was found, please insert it manually in $FILE\" with title \"$APPNAME\""
+					osascript -e "display notification \"No shutdown time was found, please insert it manually in $TIMEFILE\" with title \"$APPNAME\""
 				else
 					LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"`
-					if [[ -z `tail -n 1 $FILE | grep $LASTSHUTDOWNTIME` ]]
+					if [[ -z `tail -n 1 $TIMEFILE | grep $LASTSHUTDOWNTIME` ]]
 					then
 						# insert it only if it's not entered already
-						logger -t $APPNAME "Writing last shutdown time to $FILE"
-						sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $FILE
+						logger -t $APPNAME "Writing last shutdown time to $TIMEFILE"
+						sed -i '' '$ s/$/'$TIMESEPARATOR$LASTSHUTDOWNTIME'/' $TIMEFILE
 					fi
 				fi
 
@@ -106,7 +106,7 @@ main() {
 			fi
 
 			logger -t $APPNAME "Starting a new day"
-			printf "%s %s" "$TODAY" "$TIME" >> $FILE
+			printf "%s %s" "$TODAY" "$TIME" >> $TIMEFILE
 
 			exit 0;
 		else
@@ -117,11 +117,11 @@ main() {
 				if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHOLD ]]
 				then
 					# Was not big enough to be considered a lunch break
-					logger -t $APPNAME "Removing last sleep time from $FILE"
-					sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $FILE
+					logger -t $APPNAME "Removing last sleep time from $TIMEFILE"
+					sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $TIMEFILE
 				else
-					logger -t $APPNAME "Writing new wake time to $FILE"
-					sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE
+					logger -t $APPNAME "Writing new wake time to $TIMEFILE"
+					sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $TIMEFILE
 
 					sleep 2;
 					osascript -e "display notification \"Resuming recording...\" with title \"$APPNAME\""
@@ -138,12 +138,12 @@ main() {
 		if [[ -z $ALREADYLOGGEDINTODAY || ! -z "$LASTSLEEPTIME" ]]
 		then
 			# validation
-			osascript -e "display notification \"State is $STATE but the entries in $FILE suggest it should be a wake event. Please check your $FILE\" with title \"$APPNAME\""
+			osascript -e "display notification \"State is $STATE but the entries in $TIMEFILE suggest it should be a wake event. Please check your $TIMEFILE\" with title \"$APPNAME\""
 			exit 1;
 		elif [[ "`isItLunchTime $NOW`" = true ]]
 		then
-			logger -t $APPNAME "Writing sleep time to $FILE"
-			sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $FILE # printf "%s%s" "$TIMESEPARATOR" "$TIME" >> $FILE
+			logger -t $APPNAME "Writing sleep time to $TIMEFILE"
+			sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $TIMEFILE # printf "%s%s" "$TIMESEPARATOR" "$TIME" >> $TIMEFILE
 		else
 			logger -t $APPNAME "Skipping sleep time, not into lunch limits"
 		fi
@@ -154,22 +154,22 @@ main() {
 (
 # Variables #
 APPNAME="timetrckr"
-TODAY=`date "+%F"` # +%Y-%m-%d
-TIME=`date "+%T"` # +%H:%M:%S
+TODAY=`date "+%F"` # same as +%Y-%m-%d
+TIME=`date "+%T"` # same as +%H:%M:%S
 NOW=`date +%s` # timestamp
 SHUTDOWNPATTERN="SHUTDOWN_TIME:"
 SLEEPSTATE="sleep"
 WAKESTATE="wake"
+SUMOFHOURS="0" # is used to add up hours for reporting
 
 # Default settings #
 CONFFILE=$APPNAME".conf"
-FILE=time.csv
-OUTPUTFILE=summary.csv
+TIMEFILE=time.csv
+SUMMARYFILE=summary.csv
 THRESHOLD=$(( 10*60 )) # 10 minutes
-TIMESEPARATOR=";"
-LUNCHSTART="11:30:00"
-LUNCHSTOP="13:30:00"
-SUMOFHOURS="0" # is used for reporting to add up hours
+TIMESEPARATOR=","
+LUNCHSTART="11:45:00"
+LUNCHSTOP="13:15:00"
 
 # Parse command line parameters #
 # if they exist
@@ -178,46 +178,43 @@ then
 	usage
 fi
 
-# f requires an argument, the file for configuration
-# note: caller can use both s and w, the latter will be used
+# note: caller can use s and w in the same call, the latter of the two will be used
 while getopts "swf:r:" opt
 do
 	case $opt in
 	s)
-		logger -t $APPNAME "s selected"
 		STATE=$SLEEPSTATE
 		;;
 	w)
-		logger -t $APPNAME "w selected"
 		STATE=$WAKESTATE
 		;;
 	f)
-		logger -t $APPNAME "f selected"
 		[ -f $OPTARG ] && CONFFILE=$OPTARG
 		;;
 	r)
-		logger -t $APPNAME "r selected"
 		if [[ $OPTARG = "all" ]]
 		then
 			REPORT="all"
 		else
+			# yes you can actually pass whatever you want here - don't care
 			REPORT="one"
 		fi
 		;;
 	\?)
-		logger -t $APPNAME "Invalid arg"
+		logger -t $APPNAME "Invalid parameter passed"
 		usage
 		;;
 	esac
 done
 
+# is it a report?
 if [[ $REPORT = "all" ]]
 then
 	while read line
 	do
 		CURRENT=`getWorkingDay $line`
 		parseLine $CURRENT "false" "false"
-	done < $FILE # this loop works only if the file has at least 2 lines...
+	done < $TIMEFILE # TODO: this loop works only if the file has at least 2 lines...
 
 	osascript -e "display notification \"Worked $SUMOFHOURS hours between $STARTOFTIME and $ENDOFTIME.\" with title \"$APPNAME\""
 	exit 0
@@ -227,7 +224,7 @@ then
 	exit 0
 fi
 
-# check if mandatory arguments were given
+# else, check if state is given
 if [[ -z $STATE ]]
 then
 	usage
