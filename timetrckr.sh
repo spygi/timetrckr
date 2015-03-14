@@ -208,6 +208,11 @@ do
 done
 
 # is it a report?
+if [[ -n $REPORT && (! -f $TIMEFILE || `wc -l "$TIMEFILE" | awk '{print $1}'` = 0) ]]
+then
+	osascript -e "display notification \"Can't create report because $TIMEFILE does not exist or is empty.\" with title \"$APPNAME\""
+	exit 1	
+fi
 if [[ $REPORT = "all" ]]
 then
 	while read line
