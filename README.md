@@ -34,7 +34,7 @@ This won't be recorded. You can still temper with the output of the file..it is 
 Sure, just configure the output to be in a Dropbox synced folder.
 
 ### Do I need both .plists?
-Yes, see the [How does it work section](#howDoesItWorksection) as well. Instead of the ```timetrck.plist``` you could create an Application in Automator with a Run Shell script action which contains ```./script```, save it and make it a Login Item in System Preferences.
+Yes, see [How does it work](#-how-does-it-work) as well. Instead of the ```timetrck.plist``` you could create an Application in Automator with a Run Shell script action which contains ```./timetrckr.sh```, save it and make it a Login Item in System Preferences.
 
 ### I don't see anything.
 Make sure the Sleepwatcher (or timetrckr) daemons are loaded eg: ```launchctl list | grep sleepwatcher```
