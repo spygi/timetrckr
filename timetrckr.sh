@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Bashisms:
+# Using [[ ]] for ifs as portability is not important, in order to protect against variable expansion.
+# Enclose variables in ""
+# White-space is important in ifs and variable declarations
+ 
 usage() {
 	logger -t $APPNAME "Usage: -s|-w, optional -f <conf.file> or -r [all] for reporting"
 	exit 1
@@ -13,7 +18,7 @@ isItLunchTime() {
 }
 
 getLastWorkingDay() {
-	echo `tail -n 1 $TIMEFILE | awk '{print $1}'`
+	echo `tail -n 1 "$TIMEFILE" | awk '{print $1}'`
 }
 
 getWorkingDay() {
@@ -22,18 +27,18 @@ getWorkingDay() {
 
 # Warning: OSX notifications won't work if you run the script from tmux
 parseLine() {
-	local LASTWORKINGDAY=$1
-	local NOTIFICATIONS=$2
-	local WRITETOFILE=$3
+	local LASTWORKINGDAY="$1"
+	local NOTIFICATIONS="$2"
+	local WRITETOFILE="$3"
 
-	local LINE=`grep "$LASTWORKINGDAY" $TIMEFILE`
+	local LINE=`grep "$LASTWORKINGDAY" "$TIMEFILE"`
 
 	# convert the line to timestamps and calculate the diff
 	# Notes:
 	# the space is required for [ $TIMESEPARATOR] since the date has a space
 	# $0 is the full line in awk and $1 is the date, that's why we start the loop with $2
 	# NR starts from 1 in awk
-	local DIFF=`echo $LINE | awk -F "[ $TIMESEPARATOR]" '{for (i=2; i<=NF;i++) {print $i}}' | xargs -n1 date -j -f "%T" "+%s" | awk 'BEGIN{diff=0;}{if(NR%2==0){diff+=$0} else {diff-=$0}} END{print diff}'`
+	local DIFF=`echo "$LINE" | awk -F "[ $TIMESEPARATOR]" '{for (i=2; i<=NF; i++) {print $i}}' | xargs -n1 date -j -f "%T" "+%s" | awk 'BEGIN{diff=0;}{if(NR%2==0){diff+=$0} else {diff-=$0}} END{print diff}'`
 
 	if [[ $DIFF -le 0 ]]
 	then
@@ -63,33 +68,33 @@ parseLine() {
 	else
 		echo $LASTWORKINGDAY $OUTPUT
 		SUMOFHOURS=`echo "$SUMOFHOURS + $OUTPUT" | bc` # we need bc for floating point arithmetics
-		[ -z $STARTOFTIME ] && STARTOFTIME=$LASTWORKINGDAY
+		[[ -z $STARTOFTIME ]] && STARTOFTIME=$LASTWORKINGDAY
 		ENDOFTIME=$LASTWORKINGDAY # gets overwritten every time
 	fi
 }
 
-main() {
-	[ ! -f $TIMEFILE ] && logger -t $APPNAME "File $TIMEFILE not found, creating it now" && touch $TIMEFILE
+main() {	
+	[[ ! -f $TIMEFILE ]] && logger -t $APPNAME "File $TIMEFILE not found, creating it now" && touch $TIMEFILE
 
-	ALREADYLOGGEDINTODAY=`grep $TODAY $TIMEFILE`
-	LASTSLEEPTIME=`tail -n 1 $TIMEFILE | awk -F "$TIMESEPARATOR" '{if (NF%2 == 0) {print $NF}}'` # NF is even
-	if [[ "$STATE" = "$WAKESTATE" ]]
+	ALREADYLOGGEDINTODAY=`grep "$TODAY" "$TIMEFILE"`
+	LASTSLEEPTIMEWRITTEN=`tail -n 1 "$TIMEFILE" | awk -F "$TIMESEPARATOR" '{if (NF%2 == 0) {print $NF}}'` # if NF is even
+	if [[ $STATE = $WAKESTATE ]]
 	then
-		if [[ -z "$ALREADYLOGGEDINTODAY" ]]
+		if [[ -z $ALREADYLOGGEDINTODAY ]]
 		then
 			# we start work now
 			local LASTWORKINGDAY=`getLastWorkingDay`
 
 			if [[ -n $LASTWORKINGDAY ]]
 			then
-				LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
+				LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 "$SHUTDOWNPATTERN" | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
 				# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
-				if [ -z $LASTSHUTDOWNTIMESTAMP ]
+				if [[ -z $LASTSHUTDOWNTIMESTAMP ]]
 				then
 					osascript -e "display notification \"No shutdown time was found, please insert it manually in $TIMEFILE\" with title \"$APPNAME\""
 				else
-					LASTSHUTDOWNTIME=`date -j -f "%s" $LASTSHUTDOWNTIMESTAMP "+%T"`
-					if [[ -z `tail -n 1 $TIMEFILE | grep $LASTSHUTDOWNTIME` ]]
+					LASTSHUTDOWNTIME=`date -j -f "%s" "$LASTSHUTDOWNTIMESTAMP" "+%T"`
+					if [[ -z `tail -n 1 "$TIMEFILE" | grep "$LASTSHUTDOWNTIME"` ]]
 					then
 						# insert it only if it's not entered already
 						logger -t $APPNAME "Writing last shutdown time to $TIMEFILE"
@@ -99,7 +104,7 @@ main() {
 
 				sleep 2 # give some time for the notifications
 				# Create results for previous working day
-				parseLine $LASTWORKINGDAY "true" "false"
+				parseLine "$LASTWORKINGDAY" "true" "false"
 			else
 				# the script starts with a fresh FILE
 				osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
@@ -173,7 +178,7 @@ LUNCHSTOP="13:15:00"
 
 # Parse command line parameters #
 # if they exist
-if [ "$#" -eq 0 ]
+if [[ $# -eq 0 ]]
 then
 	usage
 fi
@@ -189,14 +194,14 @@ do
 		STATE=$WAKESTATE
 		;;
 	f)
-		[ -f $OPTARG ] && CONFFILE=$OPTARG
+		[[ -f $OPTARG ]] && CONFFILE=$OPTARG
 		;;
 	r)
 		if [[ $OPTARG = "all" ]]
 		then
 			REPORT="all"
 		else
-			# yes you can actually pass whatever you want here - don't care
+			# yes, you can actually pass whatever you want here
 			REPORT="one"
 		fi
 		;;
@@ -217,9 +222,9 @@ if [[ $REPORT = "all" ]]
 then
 	while read line
 	do
-		CURRENT=`getWorkingDay $line`
-		parseLine $CURRENT "false" "false"
-	done < $TIMEFILE # TODO: this loop works only if the file has at least 2 lines...
+		CURRENT=`getWorkingDay "$line"`
+		parseLine "$CURRENT" "false" "false"
+	done < "$TIMEFILE"
 
 	osascript -e "display notification \"Worked $SUMOFHOURS hours between $STARTOFTIME and $ENDOFTIME.\" with title \"$APPNAME\""
 	exit 0
@@ -235,7 +240,8 @@ then
 	usage
 fi
 
-# Parse configuration file, this will overwrite the defaults above #
+# Parse configuration file, this will overwrite the defaults above 
+# This could be done with source .conf but it is a security risk if .conf contains crap
 while read propline
 do
    # ignore comment lines
