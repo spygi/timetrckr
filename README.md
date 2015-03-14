@@ -1,10 +1,10 @@
-This script will help you calculate your working hours by recording boot, shutdown and time spent during lunch. I know, it should probably be named _lunchtime_ or something but _timetrckr_ sounds cooler (and more ambitious too :) )
+This script will help you calculate your working hours by recording boot, shutdown and time spent during lunch. I know, it should probably be named _lunchtime_ or something but _timetrckr_ sounds cooler (and more ambitious too :) ) Wouldn't have been possible without the [Sleepwatcher daemon](http://www.bernhard-baehr.de/).
 
 
 ## Installation
-1. Clone this project.
+1. Clone this project: ```git clone git@github.com:spygi/timetrckr.git```
 
-1. Install sleepwatcher: ```brew install sleepwatcher``` (tested with version 2.2)
+1. Install Sleepwatcher: ```brew install sleepwatcher``` (tested with version 2.2)
 
 1. Set up launchd: ```cp de.bernhard-baehr.sleepwatcher-20compatibility-localuser.plist timetrckr.plist ~/Library/LaunchAgents/``` Change the _WorkingDirectory_ in both of the .plists to point to the location where you cloned the repo.
 
@@ -12,15 +12,17 @@ Done. Next time you boot, the script will start recording time. If you want to s
 
 
 ## Reporting
-For every new day the script writes the number of hours you worked in the previous day. You can produce the report anew also manually by running ```./timetrckr.sh -r all``` to get the summary for all days recorded, or ```-r one``` for the last day only. The outcome will be written in standard output (you can always redirect it to a file) and the overall hours will be shown with a Growl-like notification (notifications don't work from inside tmux).
+For every new day that starts the script writes the number of hours you worked in the previous one in ```summary.txt```. You can produce the report anew also manually by running ```./timetrckr.sh -r all``` to get the summary for all days recorded, or ```-r one``` for the last day only. The outcome will be written in standard output (you can always redirect it to a file) and the overall hours will be shown with a Growl-like notification (notifications don't work from inside tmux).
 
 
 ## Configuration
 Have a look at ```timetrckr.conf``` for which parameters you can customize. If you want to use a different .conf file, specify it in the _ProgramArguments_ of the two .plists with ```-f```: ```./timetrckr.sh -w -f <path_to_conf_file>``` (and similar for ```-s```).
 
 
-## <a name="howDoesItWork"></a> How does it work?
+## How does it work?
 The excellent [Sleepwatcher daemon](http://www.bernhard-baehr.de/) catches sleep and wake events (could be extended to catch also login events but me no speak no C). Timetrckr.plist catches login events. Shutdown events are caught by the script itself (on the beginning of a new day). This is done by grepping the logs because shutdowns are not propagated properly to launchd daemons (see [Issue#5](http://github.com/spygi/timetrckr/issues/5)).
+
+The script creates a ```time.csv``` file which contains the boot, shutdown and lunch times and a ```summary.txt``` which contains the date and the number of hours worked that day.
 
 
 ## FAQ

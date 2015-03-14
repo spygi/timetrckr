@@ -170,7 +170,7 @@ SUMOFHOURS="0" # is used to add up hours for reporting
 # Default settings #
 CONFFILE=$APPNAME".conf"
 TIMEFILE=time.csv
-SUMMARYFILE=summary.csv
+SUMMARYFILE=summary.txt
 THRESHOLD=$(( 10*60 )) # 10 minutes
 TIMESEPARATOR=","
 LUNCHSTART="11:45:00"
