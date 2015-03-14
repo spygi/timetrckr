@@ -38,8 +38,8 @@ parseLine() {
 	if [[ $DIFF -le 0 ]]
 	then
 		osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $TIMEFILE\" with title \"$APPNAME\""
-		exit 1;
-	elif [[ -f $SUMMARYFILE && ! -z `grep $LASTWORKINGDAY $SUMMARYFILE` ]]
+		exit 1
+	elif [[ -f $SUMMARYFILE && -n `grep $LASTWORKINGDAY $SUMMARYFILE` ]]
 	then
 		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $SUMMARYFILE\" with title \"$APPNAME\""
 		exit 1
@@ -80,7 +80,7 @@ main() {
 			# we start work now
 			local LASTWORKINGDAY=`getLastWorkingDay`
 
-			if [[ ! -z $LASTWORKINGDAY ]]
+			if [[ -n $LASTWORKINGDAY ]]
 			then
 				LASTSHUTDOWNTIMESTAMP=`tail -r /private/var/log/system.log | grep -m 1 $SHUTDOWNPATTERN | awk -F "$SHUTDOWNPATTERN" '{print $2}' | awk '{print $1}'`
 				# an alternative way to do this would be through last shutdown | head -n 1 but too slow and the format is not suitable for date to parse
@@ -110,15 +110,15 @@ main() {
 
 			exit 0
 		else
-			if [ ! -z "$LASTSLEEPTIME" ]
+			if [[ -n $LASTSLEEPTIMEWRITTEN ]]
 			then
-				LASTSLEEPTIMESTAMP=`date -j -f "%T" "${LASTSLEEPTIME}" "+%s"`
+				LASTSLEEPTIMESTAMP=`date -j -f "%T" "${LASTSLEEPTIMEWRITTEN}" "+%s"`
 
 				if [[ $(( $NOW - $LASTSLEEPTIMESTAMP )) -lt THRESHOLD ]]
 				then
 					# Was not big enough to be considered a lunch break
 					logger -t $APPNAME "Removing last sleep time from $TIMEFILE"
-					sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIME'//' $TIMEFILE
+					sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIMEWRITTEN'//' $TIMEFILE
 				else
 					logger -t $APPNAME "Writing new wake time to $TIMEFILE"
 					sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $TIMEFILE
@@ -135,7 +135,7 @@ main() {
 		fi
 	else
 		# we are sleeping
-		if [[ -z $ALREADYLOGGEDINTODAY || ! -z "$LASTSLEEPTIME" ]]
+		if [[ -z $ALREADYLOGGEDINTODAY || -n $LASTSLEEPTIMEWRITTEN ]]
 		then
 			# validation
 			osascript -e "display notification \"State is $STATE but the entries in $TIMEFILE suggest it should be a wake event. Please check your $TIMEFILE\" with title \"$APPNAME\""
@@ -241,7 +241,7 @@ do
    # ignore comment lines
    echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
    # strip inline comments and set the variables
-   [ ! -z "$propline" ] && declare `sed 's/#.*$//' <<< $propline`
+   [[ -n $propline ]] && declare `sed 's/#.*$//' <<< $propline`
 done < $CONFFILE
 
 main
