@@ -42,7 +42,7 @@ parseLine() {
 	elif [[ -f $SUMMARYFILE && ! -z `grep $LASTWORKINGDAY $SUMMARYFILE` ]]
 	then
 		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $SUMMARYFILE\" with title \"$APPNAME\""
-		exit 1;
+		exit 1
 	fi
 
 	if [[ $NOTIFICATIONS = "true" ]]
@@ -108,7 +108,7 @@ main() {
 			logger -t $APPNAME "Starting a new day"
 			printf "%s %s" "$TODAY" "$TIME" >> $TIMEFILE
 
-			exit 0;
+			exit 0
 		else
 			if [ ! -z "$LASTSLEEPTIME" ]
 			then
@@ -139,7 +139,7 @@ main() {
 		then
 			# validation
 			osascript -e "display notification \"State is $STATE but the entries in $TIMEFILE suggest it should be a wake event. Please check your $TIMEFILE\" with title \"$APPNAME\""
-			exit 1;
+			exit 1
 		elif [[ "`isItLunchTime $NOW`" = true ]]
 		then
 			logger -t $APPNAME "Writing sleep time to $TIMEFILE"
