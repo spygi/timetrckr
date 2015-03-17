@@ -44,7 +44,7 @@ parseLine() {
 	then
 		osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $TIMEFILE\" with title \"$APPNAME\""
 		exit 1
-	elif [[ -f $SUMMARYFILE && -n `grep $LASTWORKINGDAY $SUMMARYFILE` ]]
+	elif [[ -f $SUMMARYFILE && -n `grep $LASTWORKINGDAY $SUMMARYFILE` && $WRITETOFILE = "true" ]]
 	then
 		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $SUMMARYFILE\" with title \"$APPNAME\""
 		exit 1
@@ -104,7 +104,7 @@ main() {
 
 				sleep 2 # give some time for the notifications
 				# Create results for previous working day
-				parseLine "$LASTWORKINGDAY" "true" "false"
+				parseLine "$LASTWORKINGDAY" "true" "true"
 			else
 				# the script starts with a fresh FILE
 				osascript -e "display notification \"$APPNAME has started recording...\" with title \"Ahoy!\""
