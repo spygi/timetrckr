@@ -12,7 +12,7 @@ Done. Next time you boot, the script will start recording time in ```time.csv```
 
 
 ## Reporting
-For every new day that starts the script writes the number of hours you worked in the previous one in ```summary.txt```. You can produce the report anew also manually by running ```./timetrckr.sh -r all``` to get the summary for all days recorded, or ```-r one``` for the last day only. The outcome will be written in standard output (you can always redirect it to a file) and the overall hours will be shown with a Growl-like notification (notifications don't work from inside tmux).
+For every new day that starts the script writes the number of hours you worked in the previous one in ```summary.txt```. You can produce the report anew also manually by running ```./timetrckr.sh -r all``` to get the summary for all days recorded (except the current one), or ```-r one``` for the last day only. The outcome will be written in standard output (you can always redirect it to a file) and the overall hours will be shown with a Growl-like notification (notifications don't work from inside tmux).
 
 
 ## Configuration
@@ -34,7 +34,7 @@ The script assumes a consistent working routine takes place. This working routin
 Well, basically because I don't need something more sophisticated (or didn't figure a simple enough solution to detect if you are in a meeting or just taking a break). The script will work well enough for computer based, desk jobs with standard working hours (or should I say standard lunch hours?).
 
 ### What if I take an additional break, outside of lunch times?
-This won't be recorded. You can still temper with the output of the file..it is just text after all. Just make sure you keep the same format (separator and time formats) and you should be fine. Note that if you change the ```time.csv``` file you should re-generate the summary using the ```-r``` argument and overwrite the automatically generated ```summary.txt```.
+This won't be recorded. You can still temper with the output of the file..it is just text after all. Just make sure you keep the same format (separator and time formats) and you should be fine. Note that if you change the ```time.csv``` file you should re-generate the summary using the ```-r``` argument and overwrite the ```summary.txt```.
 
 ### Can I sync with other devices?
 Sure, just configure the output to be in a Dropbox synced folder.

@@ -17,10 +17,6 @@ isItLunchTime() {
 	fi
 }
 
-getLastWorkingDay() {
-	echo `tail -n 1 "$TIMEFILE" | awk '{print $1}'`
-}
-
 getWorkingDay() {
 	echo `echo "$1" | awk '{print $1}'`
 }
@@ -39,15 +35,28 @@ parseLine() {
 	# $0 is the full line in awk and $1 is the date, that's why we start the loop with $2
 	# NR starts from 1 in awk
 	local DIFF=`echo "$LINE" | awk -F "[ $TIMESEPARATOR]" '{for (i=2; i<=NF; i++) {print $i}}' | xargs -n1 date -j -f "%T" "+%s" | awk 'BEGIN{diff=0;}{if(NR%2==0){diff+=$0} else {diff-=$0}} END{print diff}'`
+	
+	local OUTPUT=`echo "scale=2; $DIFF/60/60" | bc` # Note that bc floors the result
+	if [[ $WRITETOFILE = "true" ]]
+	then  
+		# do validation of the file
+		if [[ $DIFF -le 0 ]]
+		then
+			osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $TIMEFILE\" with title \"$APPNAME\""
+			exit 1
+		elif [[ -f $SUMMARYFILE && -n `grep $LASTWORKINGDAY $SUMMARYFILE` ]]
+		then
+			osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $SUMMARYFILE\" with title \"$APPNAME\""
+			exit 1
+		fi
 
-	if [[ $DIFF -le 0 ]]
-	then
-		osascript -e "display notification \"Seems you worked negative time on $LASTWORKINGDAY? Please check your $TIMEFILE\" with title \"$APPNAME\""
-		exit 1
-	elif [[ -f $SUMMARYFILE && -n `grep $LASTWORKINGDAY $SUMMARYFILE` && $WRITETOFILE = "true" ]]
-	then
-		osascript -e "display notification \"There exists another entry for $LASTWORKINGDAY. Please check your $SUMMARYFILE\" with title \"$APPNAME\""
-		exit 1
+		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $SUMMARYFILE"
+		printf "%s %s\n" $LASTWORKINGDAY $OUTPUT >> $SUMMARYFILE
+	else
+		echo $LASTWORKINGDAY $OUTPUT
+		SUMOFHOURS=`echo "$SUMOFHOURS + $OUTPUT" | bc` # we need bc for floating point arithmetics
+		[[ -z $STARTOFTIME ]] && STARTOFTIME=$LASTWORKINGDAY
+		ENDOFTIME=$LASTWORKINGDAY # gets overwritten every time
 	fi
 
 	if [[ $NOTIFICATIONS = "true" ]]
@@ -56,20 +65,6 @@ parseLine() {
 		local MINUTES=$(( ($DIFF/60)%60 ))
 		local PRETTYTEXT=$HOURS" hours, "$MINUTES" minutes"
 		osascript -e "display notification \"worked on $LASTWORKINGDAY\" with title \"$PRETTYTEXT\""
-	fi
-
-	# Here we need additional precision (2 digits)
-	# Note that bc floors the result
-	local OUTPUT=`echo "scale=2; $DIFF/60/60" | bc`
-	if [[ $WRITETOFILE = "true" ]]
-	then
-		logger -t $APPNAME "Writing summary of $LASTWORKINGDAY in $SUMMARYFILE"
-		printf "%s %s\n" $LASTWORKINGDAY $OUTPUT >> $SUMMARYFILE
-	else
-		echo $LASTWORKINGDAY $OUTPUT
-		SUMOFHOURS=`echo "$SUMOFHOURS + $OUTPUT" | bc` # we need bc for floating point arithmetics
-		[[ -z $STARTOFTIME ]] && STARTOFTIME=$LASTWORKINGDAY
-		ENDOFTIME=$LASTWORKINGDAY # gets overwritten every time
 	fi
 }
 
@@ -83,7 +78,7 @@ main() {
 		if [[ -z $ALREADYLOGGEDINTODAY ]]
 		then
 			# we start work now
-			local LASTWORKINGDAY=`getLastWorkingDay`
+			local LASTWORKINGDAY=`tail -n 1 "$TIMEFILE" | awk '{print $1}'`
 
 			if [[ -n $LASTWORKINGDAY ]]
 			then
@@ -220,17 +215,34 @@ then
 fi
 if [[ $REPORT = "all" ]]
 then
+	# do not read the last line of $TIMEFILE
+	# would be nice if Mac OS had the GNU head because then it would be: head -n -1
+	COUNTER=0
+	TOTALLINES=`wc -l "$TIMEFILE" | awk '{print $1}'`
 	while read line
 	do
+		COUNTER=$(($COUNTER + 1))
+		if [[ $COUNTER = $TOTALLINES ]]
+		then
+			break;
+		fi
 		CURRENT=`getWorkingDay "$line"`
 		parseLine "$CURRENT" "false" "false"
 	done < "$TIMEFILE"
 
+	echo "Total: "$SUMOFHOURS
 	osascript -e "display notification \"Worked $SUMOFHOURS hours between $STARTOFTIME and $ENDOFTIME.\" with title \"$APPNAME\""
 	exit 0
 elif [[ $REPORT = "one" ]]
 then
-	parseLine `getLastWorkingDay` "true" "false"
+	SECONDTOLASTLINE=$((`wc -l "$TIMEFILE" | awk '{print $1}'` - 1 ))
+	SECONDTOLASTWORKINGDAY=`sed $SECONDTOLASTLINE'q;d' "$TIMEFILE" | awk '{print $1}'` 
+	if [[ -z $SECONDTOLASTWORKINGDAY ]]
+	then
+		echo "Is there a previous day in the file $TIMEFILE?"
+		exit 1
+	fi 
+	parseLine "$SECONDTOLASTWORKINGDAY" "true" "false"
 	exit 0
 fi
 
