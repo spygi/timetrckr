@@ -17,6 +17,21 @@ isItLunchTime() {
 	fi
 }
 
+didWeHaveLunchAlreadyOnce() {
+	local COUNTER=0
+	local TODAYSTIMESTAMPS=`tail -n 1 "$TIMEFILE" | awk -F "[ $TIMESEPARATOR]" '{for (i=2; i<=NF; i++) {print $i}}' | xargs -n1 date -j -f "%T" "+%s"`
+	for TIMESTAMP in $TODAYSTIMESTAMPS
+	do
+		[[ `isItLunchTime $TIMESTAMP` = true ]] && COUNTER=$(($COUNTER + 1))
+	done
+
+	if [[ $COUNTER -gt 1 ]]
+	then
+		osascript -e "display notification \"Did we have lunch already? Check your $TIMEFILE\" with title \"$APPNAME\""
+		sleep 4
+	fi  
+}
+
 getWorkingDay() {
 	echo `echo "$1" | awk '{print $1}'`
 }
@@ -120,10 +135,12 @@ main() {
 					logger -t $APPNAME "Removing last sleep time from $TIMEFILE"
 					sed -i '' '$ s/'$TIMESEPARATOR$LASTSLEEPTIMEWRITTEN'//' $TIMEFILE
 				else
+					didWeHaveLunchAlreadyOnce
+
 					logger -t $APPNAME "Writing new wake time to $TIMEFILE"
 					sed -i '' '$ s/$/'$TIMESEPARATOR$TIME'/' $TIMEFILE
 
-					sleep 2;
+					sleep 2
 					osascript -e "display notification \"Resuming recording...\" with title \"$APPNAME\""
 				fi
 			else
