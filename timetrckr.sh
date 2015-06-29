@@ -180,6 +180,9 @@ WAKESTATE="wake"
 SUMOFHOURS="0" # is used to add up hours for reporting
 
 # Default settings #
+# The order of settings is conf file > defaults in this file
+# where ">" means more important.
+# Setting the conf file is command line > default below. 
 CONFFILE=$APPNAME".conf"
 TIMEFILE=time.csv
 SUMMARYFILE=summary.txt
@@ -188,8 +191,7 @@ TIMESEPARATOR=","
 LUNCHSTART="11:45:00"
 LUNCHSTOP="13:15:00"
 
-# Parse command line parameters #
-# if they exist
+# Parse command line parameters, if they exist
 if [[ $# -eq 0 ]]
 then
 	usage
@@ -223,6 +225,16 @@ do
 		;;
 	esac
 done
+
+# Parse configuration file, this will overwrite the defaults above 
+# This could be done with source .conf but it is a security risk if .conf contains crap
+while read propline
+do
+   # ignore comment lines
+   echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
+   # strip inline comments and set the variables
+   [[ -n $propline ]] && declare `sed 's/#.*$//' <<< $propline`
+done < $CONFFILE
 
 # is it a report?
 if [[ -n $REPORT && (! -f $TIMEFILE || `wc -l "$TIMEFILE" | awk '{print $1}'` = 0) ]]
@@ -268,16 +280,6 @@ if [[ -z $STATE ]]
 then
 	usage
 fi
-
-# Parse configuration file, this will overwrite the defaults above 
-# This could be done with source .conf but it is a security risk if .conf contains crap
-while read propline
-do
-   # ignore comment lines
-   echo "$propline" | grep "^#" > /dev/null 2>&1 && continue
-   # strip inline comments and set the variables
-   [[ -n $propline ]] && declare `sed 's/#.*$//' <<< $propline`
-done < $CONFFILE
 
 main
 )
